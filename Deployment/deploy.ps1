@@ -17,7 +17,6 @@ If($PSVersionTable.PSVersion.Major -ne 7) {
     Write-Error "https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.2"
     return
 }
-Import-Module AzureAD -UseWindowsPowerShell        # Required to register the app in Azure AD using PowerShell 7.x
 Import-Module Az.Accounts, Az.Resources, Az.KeyVault   # Required to deploy the Azure resource
 
 # Connect to AzureAD and Azure using modern authentication
@@ -55,24 +54,19 @@ else
     Select-AzSubscription -Subscription $subscriptionID | Out-Null
 }
 
-# Auto-connect to AzureAD using Azure connection context
-$context = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile.DefaultContext
-$aadToken = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory.Authenticate($context.Account, $context.Environment, $context.Tenant.Id.ToString(), $null, [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never, $null, "https://graph.windows.net").AccessToken
-Connect-AzureAD -AadAccessToken $aadToken -AccountId $context.Account.Id -TenantId $context.tenant.id
-
 write-host -ForegroundColor blue "Checking if app '$displayName' is already registered"
-$AAdapp = Get-AzureADApplication -Filter "DisplayName eq '$displayName'"
+$AAdapp = Get-AzADApplication -Filter "DisplayName eq '$displayName'"
 If ($AAdapp.Count -gt 1) {
     Write-Error "Multiple Azure AD app registered under the name '$displayName' - Please use another name and retry"
     return
 }
 If([string]::IsNullOrEmpty($AAdapp)){
     write-host -ForegroundColor blue "Register a new app in Azure AD using Azure Function app name"
-    $AADapp = New-AzureADApplication -DisplayName $displayName -AvailableToOtherTenants $false
+    $AADapp = New-AzADApplication -DisplayName $displayName -AvailableToOtherTenants $false
     $AppIdURI = "api://azfunc-" + $AADapp.AppId
     # Expose an API and create an Application ID URI
     Try {
-        Set-AzureADApplication -ObjectId $AADapp.ObjectId -IdentifierUris $AppIdURI
+        Update-AzADApplication -ObjectId $AADapp.Id -IdentifierUri $AppIdURI
     }    
     Catch {
         Write-Error "Azure AD application registration error - Please check your permissions in Azure AD and review detailed error description below"
@@ -80,20 +74,20 @@ If([string]::IsNullOrEmpty($AAdapp)){
         return
     }
     # Create a new app secret with a default validaty period of 1 year - Get the generated secret
-    $secret   = (New-AzureADApplicationPasswordCredential -ObjectId $AADapp.ObjectId -EndDate (Get-Date).date.AddYears(1)).Value
+    $secret   = (New-AzADAppCredential -ObjectId $AADapp.Id -EndDate (Get-Date).date.AddYears(1)).SecretText
     # Get the AppID from the newly registered App
     $clientID = $AADapp.AppId
-    # Get the tenantID from current AzureAD PowerShell session
-    $tenantID = (Get-AzureADTenantDetail).ObjectId
+    # Get theenantID based on App's publisher domain
+    $tenantID = $(Get-AzTenant | Where-Object {$_.Domains -contains $AADapp.PublisherDomain})[0].id
     write-host -ForegroundColor blue "New app '$displayName' registered into AzureAD"
 }
 Else {
     write-host -ForegroundColor blue "Generating a new secret for app '$displayName'"
-    $secret   = (New-AzureADApplicationPasswordCredential -ObjectId $AADapp.ObjectId -EndDate (Get-Date).date.AddYears(1)).Value
+    $secret   = (New-AzAdAppCredential -ObjectId $AADapp.Id -EndDate (Get-Date).date.AddYears(1)).SecretText
     # Get the AppID from the newly registered App
     $clientID = $AADapp.AppId
-    # Get the tenantID from current AzureAD PowerShell session
-    $tenantID = (Get-AzureADTenantDetail).ObjectId
+    # Get the tenantID based on App's publisher domain
+    $tenantID = $(Get-AzTenant | Where-Object {$_.Domains -contains $AADapp.PublisherDomain})[0].id
 }
 
 write-host -ForegroundColor blue "Deploy resource to Azure subscription"
@@ -200,9 +194,8 @@ $outputsData = [ordered]@{
     AzFunctionIPs = $outputs.Outputs.outboundIpAddresses.Value
 }
 
-#Disconnecting from Azure and AzureAD
+#Disconnecting from Azure
 Disconnect-AzAccount
-Disconnect-AzureAD
 
 write-host -ForegroundColor magenta "Here are the information you'll need to deploy and configure the Power Application"
 $outputsData
