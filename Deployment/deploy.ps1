@@ -60,9 +60,23 @@ If ($AAdapp.Count -gt 1) {
     Write-Error "Multiple Azure AD app registered under the name '$displayName' - Please use another name and retry"
     return
 }
+
 If([string]::IsNullOrEmpty($AAdapp)){
     write-host -ForegroundColor blue "Register a new app in Azure AD using Azure Function app name"
-    $AADapp = New-AzADApplication -DisplayName $displayName -AvailableToOtherTenants $false
+    $GraphAppPermissions = @{
+        ResourceAppId = "00000003-0000-0000-c000-000000000000"
+        ResourceAccess = @(
+            @{Type = "Role"; Id = "dc149144-f292-421e-b185-5953f2e98d7f"}
+            @{Type = "Role"; Id = "6a118a39-1227-45d4-af0c-ea7b40d210bc"}
+            @{Type = "Role"; Id = "35930dcf-aceb-4bd1-b99a-8ffed403c974"}
+            @{Type = "Role"; Id = "243cded2-bd16-4fd6-a953-ff8177894c3d"}
+            @{Type = "Role"; Id = "62a82d76-70ea-41e2-9197-370581804d09"}
+            @{Type = "Role"; Id = "498476ce-e0fe-48b0-b801-37ba7e2685c6"}
+            @{Type = "Role"; Id = "bdd80a03-d9bc-451d-b7c4-ce7c63fe3c8f"}
+            @{Type = "Role"; Id = "df021288-bdef-4463-88db-98f22de89214"}
+        )
+    }
+    $AADapp = New-AzADApplication -DisplayName $displayName -AvailableToOtherTenants $false -RequiredResourceAccess $GraphAppPermissions
     $AppIdURI = "api://azfunc-" + $AADapp.AppId
     # Expose an API and create an Application ID URI
     Try {
