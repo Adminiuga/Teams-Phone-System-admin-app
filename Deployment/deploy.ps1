@@ -203,11 +203,17 @@ if (($null -eq $kvCert) -or ($(get-date -AsUTC) -ge $($kvCert.Expires.AddDays(-2
     until (($certReqIsCompleted -eq $true) -and ($retries -le 5))
 }
 
-write-host -ForegroundColor blue "Adding certificate to the App credentials"
+# Add Certificate to the App credentials if needed
 Try {
     $kvCert = Get-AzKeyVaultCertificate -VaultName $outputs.Outputs.azKeyVaultName.Value -Name $kvCertificateName
-    $pemCert = [Convert]::ToBase64String($kvCert.Certificate.Export(1))
-    New-AzADAppCredential -CertValue $pemCert -ApplicationId $AAdApp.AppId
+    $AppCertsCred = $AADApp.KeyCredentials  | ForEach-Object {
+        [Convert]::ToBase64String($_.CustomKeyIdentifier)
+    }
+    if ( !($AppCertsCred -contains $kvCert.Thumbprint) ) {
+        write-host -ForegroundColor blue "Adding certificate to the App credentials"
+        $pemCert = [Convert]::ToBase64String($kvCert.Certificate.Export(1))
+        New-AzADAppCredential -CertValue $pemCert -ApplicationId $AAdApp.AppId
+    }
 }
 Catch {
     Write-Error "Couldn't add certificate to the application secrets"
