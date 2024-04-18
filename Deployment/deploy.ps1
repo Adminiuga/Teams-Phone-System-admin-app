@@ -4,7 +4,11 @@ Param (
     [parameter(mandatory = $false)] $resourcePrefix = "Teams",                  # Prefix for the resources deployed on your Azure subscription
     [parameter(mandatory = $false)] $location = 'westeurope',                   # Location (region) where the Azure resource are deployed
     [parameter(mandatory = $true)] $serviceAccountUPN,                          # AzureAD Service Account UPN
-    [parameter(mandatory = $true)] $serviceAccountSecret                        # AzureAD Service Account password
+    [parameter(mandatory = $true)] $serviceAccountSecret,                       # AzureAD Service Account password
+    [parameter(mandatory = $false, HelpMessage="Keyvault Certificate name")]
+    [string]$kvCertificateName = "TeamsAdminAppRole",                           # Certificate Name in KeyVault for the Teams Admin Role app auth
+    [parameter(mandatory = $false, HelpMessage="Teams Certificate Subject name")]
+    [string]$CertificateSubjectName = "Teams-Admin-App-Role"                    # Certificate Subject Name for the Teams Admin Role app auth
 )
 
 $base = $PSScriptRoot
@@ -140,7 +144,8 @@ if($CurrentUserId -ne $serviceAccountUPN)
     # Assign current user with the permissions to list and read Azure KeyVault secrets (to enable the connection with the Power Automate flow)
     Write-Host -ForegroundColor blue "Assigning 'Secrets List & Get' policy on Azure KeyVault for user $CurrentUserId"
     Try {
-        Set-AzKeyVaultAccessPolicy -VaultName $outputs.Outputs.azKeyVaultName.Value -ResourceGroupName $rgName -UserPrincipalName $CurrentUserId -PermissionsToSecrets list,get
+        Set-AzKeyVaultAccessPolicy -VaultName $outputs.Outputs.azKeyVaultName.Value -ResourceGroupName $rgName -UserPrincipalName $CurrentUserId -PermissionsToSecrets list,get `
+                                   -PermissionsToCertificates all
     }
     Catch {
         Write-Error "Error - Couldn't assign user permissions to get,list the KeyVault secrets - Please review detailed error message below"
@@ -168,6 +173,64 @@ else
         Write-Error "Error - Couldn't assign user permissions to get,list the KeyVault secrets - Please review detailed error message below"
         $_.Exception.Message
     }
+}
+
+write-host -ForegroundColor blue "Checking if Certificate exists and is not expired"
+$kvCert = Get-AzKeyVaultCertificate -VaultName $outputs.Outputs.azKeyVaultName.Value -Name $kvCertificateName
+if (($null -eq $kvCert) -or ($(get-date -AsUTC) -ge $($kvCert.Expires.AddDays(-21)))) {
+    write-host -ForegroundColor blue "Creating a self-signed certificate for Teams admin access"
+    $KVCertPolicyParams = @{
+        SecretContentType = "application/x-pkcs12"
+        SubjectName       = "CN=$CertificateSubjectName"
+        IssuerName        = "Self"
+        ValidityInMonths  = 6
+    }
+    Try {
+        $Policy = New-AzKeyVaultCertificatePolicy @KVCertPolicyParams
+        Add-AzKeyVaultCertificate -VaultName $outputs.Outputs.azKeyVaultName.Value -Name $kvCertificateName -CertificatePolicy $Policy
+    }
+    Catch {
+        Write-Error "Couldn't issue a self-signed certificate"
+        $_.Exception.Message
+    }
+
+    $retries = 0
+    do {
+        write-host -ForegroundColor yellow "Checking certificate request status"
+        $certOp = Get-AzKeyVaultCertificateOperation -VaultName $outputs.Outputs.azKeyVaultName.Value -Name $kvCertificateName
+        $certReqIsCompleted = ($certOp.Status -eq "completed")
+    }
+    until (($certReqIsCompleted -eq $true) -and ($retries -le 5))
+}
+
+write-host -ForegroundColor blue "Adding certificate to the App credentials"
+Try {
+    $kvCert = Get-AzKeyVaultCertificate -VaultName $outputs.Outputs.azKeyVaultName.Value -Name $kvCertificateName
+    $pemCert = [Convert]::ToBase64String($kvCert.Certificate.Export(1))
+    New-AzADAppCredential -CertValue $pemCert -ApplicationId $AAdApp.AppId
+}
+Catch {
+    Write-Error "Couldn't add certificate to the application secrets"
+    $_.Exception.Message
+}
+
+write-host -ForegroundColor blue "Updating Web App Settings"
+Try {
+    $WebApp = Get-AzWebApp -ResourceGroupName $rgName -Name $outputs.Outputs.azFuncAppName.Value
+    $UpdatedWebAppSettings = @{WEBSITE_LOAD_CERTIFICATES = $kvCert.Thumbprint}
+    $WebApp.SiteConfig.AppSettings | ForEach-Object {
+        $UpdatedWebAppSettings[$_.Name] = $_.Value
+    }
+    $azWebAppParams = @{
+        ResourceGroupName = $rgName
+        Name              = $outputs.Outputs.azFuncAppName.Value
+        AppSettings       = $UpdatedWebAppSettings
+    }
+    Set-AzWebApp @azWebAppParams | Out-Null
+}
+Catch {
+    Write-Error "Couldn't update web app settings"
+    $_.Exception.Message
 }
 
 write-host -ForegroundColor blue "Getting the Azure Function App key for warm-up test"
