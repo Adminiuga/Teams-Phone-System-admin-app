@@ -199,6 +199,12 @@ if (($null -eq $kvCert) -or ($(get-date -AsUTC) -ge $($kvCert.Expires.AddDays(-2
         write-host -ForegroundColor yellow "Checking certificate request status"
         $certOp = Get-AzKeyVaultCertificateOperation -VaultName $outputs.Outputs.azKeyVaultName.Value -Name $kvCertificateName
         $certReqIsCompleted = ($certOp.Status -eq "completed")
+        if ( !$certReqIsCompleted ) {
+            $delay = 2 + $retries * 2
+            $retries += 1
+            write-host "Sleeping for $delay seconds before retrying"
+            Sleep-Seconds $delay
+        }
     }
     until (($certReqIsCompleted -eq $true) -and ($retries -le 5))
 }
@@ -228,7 +234,7 @@ Try {
         CertName          = $kvCertificateName
         WebAppName        = $outputs.Outputs.azFuncAppName.Value
     }
-    Import-AzWebAppKeyVaultCertificate @importCertParams
+    Import-AzWebAppKeyVaultCertificate @importCertParams | Out-Null
 }
 Catch {
     Write-Error "Couldn't import KeyVault certificate to Web Function App"
