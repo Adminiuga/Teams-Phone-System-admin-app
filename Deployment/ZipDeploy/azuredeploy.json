@@ -186,7 +186,19 @@
                                 "Get"
                             ]
                         }
-                    }                  
+                    },
+                    {
+                        "tenantId": "[subscription().tenantId]",
+                        "objectId": "6d72bc4f-71d8-4515-ae7d-0c745ad30984",
+                        "permissions": {
+                            "secrets": [
+                                "get"
+                            ],
+                            "certificates": [
+                                "get"
+                            ]
+                        }
+                    }
                 ],
                 "sku": {
                     "name": "standard",

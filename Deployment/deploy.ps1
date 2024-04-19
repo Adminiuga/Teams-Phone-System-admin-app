@@ -145,7 +145,7 @@ if($CurrentUserId -ne $serviceAccountUPN)
     Write-Host -ForegroundColor blue "Assigning 'Secrets List & Get' policy on Azure KeyVault for user $CurrentUserId"
     Try {
         Set-AzKeyVaultAccessPolicy -VaultName $outputs.Outputs.azKeyVaultName.Value -ResourceGroupName $rgName -UserPrincipalName $CurrentUserId -PermissionsToSecrets list,get `
-                                   -PermissionsToCertificates all
+                                   -PermissionsToCertificates "get", "list", "update", "create"
     }
     Catch {
         Write-Error "Error - Couldn't assign user permissions to get,list the KeyVault secrets - Please review detailed error message below"
@@ -217,6 +217,21 @@ Try {
 }
 Catch {
     Write-Error "Couldn't add certificate to the application secrets"
+    $_.Exception.Message
+}
+
+# Link certificate in KeyVault to WebApp's "bring your own certificate"
+Try {
+    $importCertParams = @{
+        ResourceGroupName = $rgName
+        KeyVaultName      = $outputs.Outputs.azKeyVaultName.Value
+        CertName          = $kvCertificateName
+        WebAppName        = $outputs.Outputs.azFuncAppName.Value
+    }
+    Import-AzWebAppKeyVaultCertificate @importCertParams
+}
+Catch {
+    Write-Error "Couldn't import KeyVault certificate to Web Function App"
     $_.Exception.Message
 }
 
