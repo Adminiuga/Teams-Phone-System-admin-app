@@ -10,18 +10,6 @@
                 "description": "Prefix to your Azure resourcecs names"
             }
         },
-        "serviceAccountUPN": {
-            "type": "string",
-            "metadata": {
-                "description": "email of your Microsoft Teams Service Account"
-            }
-        },    
-        "serviceAccountSecret": {
-            "type": "securestring",
-            "metadata": {
-                "description": "Password of your Microsoft Teams Service Account"
-            }
-        },
         "gitRepoUrl": {
             "type": "string",
             "metadata": {
@@ -213,38 +201,8 @@
                             "enabled": true
                         }
                     }
-                },
-                {
-                    "type": "Microsoft.KeyVault/vaults/secrets",
-                    "name": "[concat(variables('keyVaultName'), '/Teams-service-account-name')]",
-                    "apiVersion": "2021-04-01-preview",
-                    "dependsOn": [
-                        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
-                    ],
-                    "properties": {
-                        "value": "[parameters('serviceAccountUPN')]",
-                        "contentType": "text/plain",
-                        "attributes": {
-                            "enabled": true
-                        }
-                    }
-                },
-                {
-                    "type": "Microsoft.KeyVault/vaults/secrets",
-                    "name": "[concat(variables('keyVaultName'), '/Teams-service-account-secret')]",
-                    "apiVersion": "2021-04-01-preview",
-                    "dependsOn": [
-                        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
-                    ],
-                    "properties": {
-                        "value": "[parameters('serviceAccountSecret')]",
-                        "contentType": "text/plain",
-                        "attributes": {
-                            "enabled": true
-                        }
-                    }
-                }                  
-            ]
+                }
+           ]
         }                                                           
     ],
     "outputs": {

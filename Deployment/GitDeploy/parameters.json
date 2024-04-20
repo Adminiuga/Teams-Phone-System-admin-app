@@ -5,12 +5,6 @@
         "resourcePrefix": {
             "value": "Teams"
         },
-        "serviceAccountUPN": {
-            "value": "service@tenant.onmicrosoft.com"
-        },
-        "serviceAccountSecret": {
-            "value": "XXXXXXXXXX"
-        },                
         "gitRepoUrl" : {
             "value": "https://github.com/OfficeDev/Teams-Phone-System-admin-app.git"
         },                

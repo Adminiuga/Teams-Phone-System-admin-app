@@ -3,8 +3,6 @@ Param (
     [parameter(mandatory = $false)] $rgName = "Teams-Telephony-Manager",        # Name of the resource group for Azure
     [parameter(mandatory = $false)] $resourcePrefix = "Teams",                  # Prefix for the resources deployed on your Azure subscription
     [parameter(mandatory = $false)] $location = 'westeurope',                   # Location (region) where the Azure resource are deployed
-    [parameter(mandatory = $true)] $serviceAccountUPN,                          # AzureAD Service Account UPN
-    [parameter(mandatory = $true)] $serviceAccountSecret,                       # AzureAD Service Account password
     [parameter(mandatory = $false, HelpMessage="Keyvault Certificate name")]
     [string]$kvCertificateName = "TeamsAdminAppRole",                           # Certificate Name in KeyVault for the Teams Admin Role app auth
     [parameter(mandatory = $false, HelpMessage="Teams Certificate Subject name")]
@@ -121,8 +119,6 @@ write-host -ForegroundColor blue "Resource Group $rgName created in location $lo
 $deploymentName = 'deploy-' + (Get-Date -Format "yyyyMMdd-hhmm")
 $parameters = @{
     resourcePrefix          = $resourcePrefix
-    serviceAccountUPN       = $serviceAccountUPN
-    serviceAccountSecret    = $serviceAccountSecret
     clientID                = $clientID
     appSecret               = $secret
 }
@@ -139,40 +135,15 @@ write-host -ForegroundColor blue "ARM template deployed successfully"
 # Getting UPN from connected user
 $CurrentUserId = Get-AzContext | ForEach-Object account | ForEach-Object Id
 
-if($CurrentUserId -ne $serviceAccountUPN)
-{
-    # Assign current user with the permissions to list and read Azure KeyVault secrets (to enable the connection with the Power Automate flow)
-    Write-Host -ForegroundColor blue "Assigning 'Secrets List & Get' policy on Azure KeyVault for user $CurrentUserId"
-    Try {
-        Set-AzKeyVaultAccessPolicy -VaultName $outputs.Outputs.azKeyVaultName.Value -ResourceGroupName $rgName -UserPrincipalName $CurrentUserId -PermissionsToSecrets list,get `
-                                   -PermissionsToCertificates "get", "list", "update", "create"
-    }
-    Catch {
-        Write-Error "Error - Couldn't assign user permissions to get,list the KeyVault secrets - Please review detailed error message below"
-        $_.Exception.Message
-    }
-
-    # Assign service account with the permissions to list and read Azure KeyVault secrets (to enable the connection with the Power Automate flow)
-    Write-Host -ForegroundColor blue "Assigning 'Secrets List & Get' policy on Azure KeyVault for user $serviceAccountUPN"
-    Try {
-        Set-AzKeyVaultAccessPolicy -VaultName $outputs.Outputs.azKeyVaultName.Value -ResourceGroupName $rgName -UserPrincipalName $CurrentUserId -PermissionsToSecrets list,get
-    }
-    Catch {
-        Write-Error "Error - Couldn't assign user permissions to get,list the KeyVault secrets - Please review detailed error message below"
-        $_.Exception.Message
-    }    
+# Assign current user with the permissions to list and read Azure KeyVault secrets (to enable the connection with the Power Automate flow)
+Write-Host -ForegroundColor blue "Assigning 'Secrets List & Get' policy on Azure KeyVault for user $CurrentUserId"
+Try {
+    Set-AzKeyVaultAccessPolicy -VaultName $outputs.Outputs.azKeyVaultName.Value -ResourceGroupName $rgName -UserPrincipalName $CurrentUserId -PermissionsToSecrets list,get `
+                               -PermissionsToCertificates "get", "list", "update", "create"
 }
-else
-{
-    # Assign service account with the permissions to list and read Azure KeyVault secrets (to enable the connection with the Power Automate flow)
-    Write-Host -ForegroundColor blue "Assigning 'Secrets List & Get' policy on Azure KeyVault for user $serviceAccountUPN"
-    Try {
-        Set-AzKeyVaultAccessPolicy -VaultName $outputs.Outputs.azKeyVaultName.Value -ResourceGroupName $rgName -UserPrincipalName $CurrentUserId -PermissionsToSecrets list,get
-    }
-    Catch {
-        Write-Error "Error - Couldn't assign user permissions to get,list the KeyVault secrets - Please review detailed error message below"
-        $_.Exception.Message
-    }
+Catch {
+    Write-Error "Error - Couldn't assign user permissions to get,list the KeyVault secrets - Please review detailed error message below"
+    $_.Exception.Message
 }
 
 write-host -ForegroundColor blue "Checking if Certificate exists and is not expired"
