@@ -27,13 +27,13 @@
             "metadata": {
                 "description": "AzureAD application ID - aka clientID"
             }
-        },  
+        },
         "appSecret": {
             "type": "string",
             "metadata": {
                 "description": "AzureAD application secret - To be stored in Azure KeyVault"
             }
-        },                          
+        },
         "packageURI": {
             "type": "string",
             "metadata": {
@@ -43,11 +43,11 @@
         }
     },
     "variables": {
-        "randomize" : "[substring(uniqueString(resourceGroup().id),0,5)]",
+        "randomize": "[substring(uniqueString(resourceGroup().id),0,5)]",
         "stoAccountName": "[concat('stoaccount',variables('randomize'))]",
-        "serverFarmName" : "[concat(parameters('resourcePrefix'),'-',variables('randomize'))]",
-        "functionAppName" : "[concat(parameters('resourcePrefix'),'-',variables('randomize'))]",
-        "keyVaultName" : "[concat(parameters('resourcePrefix'),'-',variables('randomize'))]"
+        "serverFarmName": "[concat(parameters('resourcePrefix'),'-',variables('randomize'))]",
+        "functionAppName": "[concat(parameters('resourcePrefix'),'-',variables('randomize'))]",
+        "keyVaultName": "[concat(parameters('resourcePrefix'),'-',variables('randomize'))]"
     },
     "resources": [
         {
@@ -61,11 +61,11 @@
             },
             "properties": {
                 "supportsHttpsTrafficOnly": true,
-                "allowBlobPublicAccess" : true,
-                "allowSharedKeyAccess" : true,
-                "minimumTlsVersion" : "TLS1_2"
-            }            
-        },  
+                "allowBlobPublicAccess": true,
+                "allowSharedKeyAccess": true,
+                "minimumTlsVersion": "TLS1_2"
+            }
+        },
         {
             "name": "[variables('serverFarmName')]",
             "type": "Microsoft.Web/serverfarms",
@@ -82,7 +82,7 @@
             "properties": {
                 "reserved": false
             }
-        }, 
+        },
         {
             "name": "[variables('functionAppName')]",
             "type": "Microsoft.Web/sites",
@@ -93,11 +93,11 @@
                 "[resourceId('Microsoft.Web/serverfarms', variables('serverFarmName'))]",
                 "[resourceId('Microsoft.Storage/storageAccounts', variables('stoAccountName'))]"
             ],
-            "identity" :{
-                "type" : "SystemAssigned"
+            "identity": {
+                "type": "SystemAssigned"
             },
             "properties": {
-                "name" : "[variables('functionAppName')]",
+                "name": "[variables('functionAppName')]",
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('serverFarmName'))]"
             },
             "resources": [
@@ -113,7 +113,7 @@
                         "powerShellVersion": "~7",
                         "use32BitWorkerProcess": false
                     }
-                },   
+                },
                 {
                     "apiVersion": "2020-12-01",
                     "name": "[concat(variables('functionAppName'), '/authsettingsV2')]",
@@ -127,7 +127,7 @@
                             "requireAuthentication": true,
                             "unauthenticatedClientAction": "Return401"
                         },
-                        "identityProviders":{
+                        "identityProviders": {
                             "azureActiveDirectory": {
                                 "registration": {
                                     "clientId": "[parameters('clientID')]",
@@ -141,7 +141,7 @@
                             }
                         }
                     }
-                },                 
+                },
                 {
                     "apiVersion": "2021-02-01",
                     "name": "[concat(variables('functionAppName'), '/appsettings')]",
@@ -152,24 +152,24 @@
                         "[resourceId('Microsoft.Web/sites/config', variables('functionAppName'), 'authsettingsV2')]"
                     ],
                     "properties": {
-                        "AdminAccountLogin"   : "[concat('@Microsoft.KeyVault(VaultName=', variables('keyVaultName') ,';SecretName=Teams-service-account-name)')]",
-                        "AdminAccountPassword": "[concat('@Microsoft.KeyVault(VaultName=', variables('keyVaultName') ,';SecretName=Teams-service-account-secret)')]",
-                        "AzureWebJobsStorage" : "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('stoAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('stoAccountName')), '2019-06-01').keys[0].value)]",
-                        "FUNCTIONS_EXTENSION_VERSION" : "~4",
+                        "TeamsAdminAppTenantId": "[subscription().tenantId]",
+                        "TeamsAdminAppClientId": "[parameters('clientID')]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('stoAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('stoAccountName')), '2019-06-01').keys[0].value)]",
+                        "FUNCTIONS_EXTENSION_VERSION": "~4",
                         "FUNCTIONS_WORKER_PROCESS_COUNT": "3",
                         "FUNCTIONS_WORKER_RUNTIME": "powershell",
                         "FUNCTIONS_WORKER_RUNTIME_VERSION": "~7",
-                        "WEBSITE_RUN_FROM_PACKAGE": "[parameters('packageURI')]"               
+                        "WEBSITE_RUN_FROM_PACKAGE": "[parameters('packageURI')]"
                     }
-                }       
-            ]                
-        },       
+                }
+            ]
+        },
         {
             "name": "[variables('keyVaultName')]",
             "type": "Microsoft.KeyVault/vaults",
             "apiVersion": "2019-09-01",
             "location": "[resourceGroup().location]",
-            "dependsOn" :[
+            "dependsOn": [
                 "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
             ],
             "properties": {
@@ -265,9 +265,9 @@
                             "enabled": true
                         }
                     }
-                }                  
+                }
             ]
-        }                                                           
+        }
     ],
     "outputs": {
         "AzFuncAppName": {
@@ -277,7 +277,7 @@
         "AzFuncAppCode": {
             "type": "string",
             "value": "[listkeys(concat(resourceId('Microsoft.Web/sites', variables('functionAppName')), '/host/default/'),'2016-08-01').masterKey]"
-        } ,
+        },
         "AzFuncHostName": {
             "type": "string",
             "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2021-03-01', 'Full').properties.defaultHostName]"
@@ -289,6 +289,6 @@
         "AzKeyVaultName": {
             "type": "string",
             "value": "[variables('keyVaultName')]"
-        }          
+        }
     }
 }

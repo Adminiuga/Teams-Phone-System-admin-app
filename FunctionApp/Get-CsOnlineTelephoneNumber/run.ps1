@@ -13,15 +13,10 @@ $Resp = ConvertTo-Json @()
 # Get query parameters to search non assigned number based on location - OPTIONAL parameter
 $Location = $Request.Query.Location
 
-# Authenticate to Microsoft Teams using service account
-$Account = $env:AdminAccountLogin 
-$PWord = ConvertTo-SecureString -String $env:AdminAccountPassword -AsPlainText -Force
-$Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $Account, $PWord
-
 Import-TeamsModule
 
 Try {
-    Connect-MicrosoftTeams -Credential $Credential -ErrorAction:Stop
+    Connect-Teams
 }
 Catch {
     $Resp = @{ "Error" = $_.Exception.Message }

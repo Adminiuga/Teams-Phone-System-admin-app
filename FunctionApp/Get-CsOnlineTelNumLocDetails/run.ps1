@@ -22,17 +22,11 @@ else {
     Write-Output "Searching location for number: " $TelephoneNumber
 }
 
-# Authenticate to Microsoft Teams using service account
-$Account = $env:AdminAccountLogin 
-$PWord = ConvertTo-SecureString -String $env:AdminAccountPassword -AsPlainText -Force
-$Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $Account, $PWord
-
-$MSTeamsDModuleLocation = ".\Modules\MicrosoftTeams\4.7.0\MicrosoftTeams.psd1"
-Import-Module $MSTeamsDModuleLocation
+Import-TeamsModule
 
 If ($StatusCode -eq [HttpStatusCode]::OK) {
     Try {
-        Connect-MicrosoftTeams -Credential $Credential -ErrorAction:Stop
+        Connect-Teams
     }
     Catch {
         $Resp = @{ "Error" = $_.Exception.Message }

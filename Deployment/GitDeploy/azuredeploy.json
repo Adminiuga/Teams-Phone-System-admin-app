@@ -96,12 +96,12 @@
                 "siteConfig": {
                     "appSettings": [
                         {
-                            "name": "AdminAccountLogin",
-                            "value": "[concat('@Microsoft.KeyVault(VaultName=', variables('keyVaultName') ,';SecretName=Teams-service-account-name)')]"
+                            "name": "TeamsAdminAppTenantId",
+                            "value": "[subscription().tenantId]"
                         },
                         {
-                            "name": "AdminAccountPassword",
-                            "value": "[concat('@Microsoft.KeyVault(VaultName=', variables('keyVaultName') ,';SecretName=Teams-service-account-secret)')]"
+                            "name": "TeamsAdminAppClientId",
+                            "value": "[parameters('clientID')]"
                         },
                         {
                             "name": "AzureWebJobsStorage",

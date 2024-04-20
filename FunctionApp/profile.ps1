@@ -30,4 +30,12 @@ function Import-TeamsModule () {
     Import-Module $MSTeamsDModuleLocation
 }
 
+function Connect-Teams () {
+    Connect-MicrosoftTeams `
+        -ApplicationId $env:TeamsAdminAppClientId `
+        -CertificateThumbprint $env:WEBSITE_LOAD_CERTIFICATES `
+        -TenantId $env:TeamsAdminAppTenantId `
+        -ErrorAction Stop
+}
+
 Import-TeamsModule

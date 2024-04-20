@@ -35,16 +35,11 @@ Else {
     }    
 }
 
-# Authenticate to AzureAD using service account
-$Account = $env:AdminAccountLogin 
-$PWord = ConvertTo-SecureString -String $env:AdminAccountPassword -AsPlainText -Force
-$Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $Account, $PWord
-
 Import-TeamsModule
 
 If ($StatusCode -eq [HttpStatusCode]::OK) {
     Try {
-        Connect-MicrosoftTeams -Credential $Credential -ErrorAction:Stop
+        Connect-Teams
     }
     Catch {
         $Resp = @{ "Error" = $_.Exception.Message }
